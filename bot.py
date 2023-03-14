@@ -1,13 +1,16 @@
 import discord
 from discord.commands import Option
+from discord.ext import commands
+from discord import ui
 
 import json
 
-intents = discord.Intents.default()
+intents = discord.Intents.all()
 intents.members = True
 bot = discord.Bot(
     intents=intents,
-    members=True
+    members=True,
+    messages=True
 )
 
 
@@ -38,6 +41,25 @@ async def on_member_join(member):
     embed.set_thumbnail(url=member.display_avatar.url)
     textchannel = discord.utils.get(member.guild.channels, name="・logs・")
     await textchannel.send(embed=embed)
+
+
+@bot.event
+async def on_message(message):
+    if message.attachments:
+        for attachment in message.attachments:
+            if attachment.filename.endswith(".png") or attachment.filename.endswith(".jpg") or attachment.filename.endswith(".jpeg") or attachment.filename.endswith(".gif"):
+                button = discord.ui.Button(label="Link", style=discord.ButtonStyle.primary, url=attachment.url)
+                view = discord.ui.View()
+                view.add_item(button)
+
+                embed = discord.Embed(
+                    title=f"Download",
+                    description=f"Klicke auf den Button, um den Link des Bildes zu erhalten",
+                    color=discord.Color.gold()
+                )
+                
+                await message.channel.send(embed=embed, view=view)
+
 
 @bot.slash_command(description="Erstellt einen Textkanal")
 async def createchannel(ctx, user: Option(discord.Member, default=None)):
