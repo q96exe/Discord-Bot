@@ -1,6 +1,8 @@
 import discord
 from discord.commands import Option
 
+import json
+
 intents = discord.Intents.default()
 bot = discord.Bot(
     intents=intents
@@ -54,6 +56,12 @@ async def createchannel(ctx, user: Option(discord.Member, default=None)):
     textchannel = discord.utils.get(ctx.guild.channels, name="・logs・")
     await textchannel.send(embed=embed)
     await ctx.respond(embed=embed, ephemeral=True)
+
+
+def getToken():
+    with open('token.json', 'r') as f:
+        token = json.load(f)
+        return token['token']
     
 
-bot.run('MTA4MDI1MDcwNTc2OTY4MDkxNw.Gb4H1b.vVsUWlxKWRZg1jXeK14ASX2joytMoA7v-H2SQY')
+bot.run(getToken())
