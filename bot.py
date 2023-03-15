@@ -1,7 +1,7 @@
 import discord
 from discord.commands import Option
-from discord.ext import commands
-from discord import ui
+
+import aiosqlite
 
 import json
 
@@ -13,17 +13,57 @@ bot = discord.Bot(
     messages=True
 )
 
+DB = "user.db"
+
 
 @bot.event
 async def on_ready():
     print(f"{bot.user} ist online")
 
+    async with aiosqlite.connect('user.db') as db:
+        await db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user (
+            user_id INTEGER PRIMARY KEY,
+            channel_id INTEGER 
+            )
+            """
+        )
+
+    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="Wartet auf deine Bilder"))
+
+async def create_user(user_id, channel_id):
+    async with aiosqlite.connect(DB) as db:
+        await db.execute(
+            """
+            INSERT OR IGNORE INTO user (user_id, channel_id)
+            VALUES (?, ?)
+            """,
+            (user_id, channel_id)
+        )
+        await db.commit()
+
+def check_user(user_id, channel_id):
+    with aiosqlite.connect(DB) as db:
+        db.execute(
+            """
+            SELECT * FROM user WHERE user_id = ?
+            """,
+            (user_id,)
+        )
+        result = db.commit()
+        if result is None:
+            return create_user(user_id, channel_id)
+        else:
+            return True
+
+# TODO: Create a function to check if the user has a channel
 
 @bot.event
 async def on_member_join(member):
-    category = discord.utils.get(member.guild.categories, name="Channel")
-    channel = await member.guild.create_text_channel(str(member.name), category=category)
-    if discord.utils.get(member.guild.channels, name=str(member.name)) is None:
+    if check_user(member.id, channel.id):
+        category = discord.utils.get(member.guild.categories, name="Channel")
+        channel = await member.guild.create_text_channel(str(member.name), category=category)
         await channel.set_permissions(member, read_messages=True, send_messages=True, reason="User joined, Text Channel created")
         await channel.set_permissions(member.guild.default_role, read_messages=False, send_messages=False, reason="User joined, Text Channel created")
     else:
@@ -48,13 +88,26 @@ async def on_message(message):
     if message.attachments:
         for attachment in message.attachments:
             if attachment.filename.endswith(".png") or attachment.filename.endswith(".jpg") or attachment.filename.endswith(".jpeg") or attachment.filename.endswith(".gif"):
-                button = discord.ui.Button(label="Link", style=discord.ButtonStyle.primary, url=attachment.url)
+                link = attachment.url
+                if ".png" in link:
+                    index = link.index(".png")
+                    new_link = link[:index+len(".png")]
+                elif ".jpg" in link:
+                    index = link.index(".jpg")
+                    new_link = link[:index+len(".jpg")]
+                elif ".jpeg" in link:
+                    index = link.index(".jpeg")
+                    new_link = link[:index+len(".jpeg")]
+                elif ".gif" in link:
+                    index = link.index(".gif")
+                    new_link = link[:index+len(".gif")] 
+                button = discord.ui.Button(label="Link", style=discord.ButtonStyle.primary, url=new_link)
                 view = discord.ui.View()
                 view.add_item(button)
 
                 embed = discord.Embed(
-                    title=f"Download",
-                    description=f"Klicke auf den Button, um den Link des Bildes zu erhalten",
+                    title="Download",
+                    description="Klicke auf den Button, um den Link des Bildes zu erhalten",
                     color=discord.Color.gold()
                 )
                 
