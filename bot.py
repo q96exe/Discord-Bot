@@ -80,8 +80,6 @@ async def create_db_user(ctx, user: Option(discord.Member, default=None)):
 
     await ctx.respond(embed=embed, ephemeral=True)
 
-# TODO: Create a function to check if the user has a channel
-
 @bot.event
 async def on_member_join(member):
     if await check_user_exists(member.id):
