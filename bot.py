@@ -29,6 +29,7 @@ async def on_ready():
             )
             """
         )
+        await db.commit()
 
     await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="Wartet auf deine Bilder"))
 
@@ -43,25 +44,47 @@ async def create_user(user_id, channel_id):
         )
         await db.commit()
 
-def check_user(user_id, channel_id):
-    with aiosqlite.connect(DB) as db:
-        db.execute(
+async def check_user_exists(user_id):
+    async with aiosqlite.connect(DB) as db:
+        cursor = await db.execute(
             """
             SELECT * FROM user WHERE user_id = ?
             """,
             (user_id,)
         )
-        result = db.commit()
-        if result is None:
-            return create_user(user_id, channel_id)
-        else:
-            return True
+        result = await cursor.fetchall()
+        return bool(result)
+    
+async def get_channel_from_id(user_id):
+    async with aiosqlite.connect(DB) as db:
+        cursor = await db.execute(
+            """
+            SELECT channel_id FROM user WHERE user_id = ?
+            """, 
+            (user_id,)
+        )
+        result = await cursor.fetchone()
+        channel_id = result[0]
+        return channel_id
+        
+        
+@bot.slash_command(description="DB Test", name="createdbuser")
+async def create_db_user(ctx, user: Option(discord.Member, default=None)):
+    await create_user(user.id, "1085244955657769071")
+
+    embed = discord.Embed(
+        title=f"User {user.name} wurde erfolgreich erstellt",
+        description=f"User {user.name} wurde erfolgreich erstellt",
+        color=discord.Color.gold()
+    )
+
+    await ctx.respond(embed=embed, ephemeral=True)
 
 # TODO: Create a function to check if the user has a channel
 
 @bot.event
 async def on_member_join(member):
-    if check_user(member.id, channel.id):
+    if await check_user_exists(member.id):
         category = discord.utils.get(member.guild.categories, name="Channel")
         channel = await member.guild.create_text_channel(str(member.name), category=category)
         await channel.set_permissions(member, read_messages=True, send_messages=True, reason="User joined, Text Channel created")
@@ -78,9 +101,17 @@ async def on_member_join(member):
         color=discord.Color.gold()
     )
 
+    channel_embed = discord.Embed(
+        title=f"Willkommen {member.name}!",
+        description=f"Dein eigener Textkanal wurde erfolgreich erstellt. Hier kannst du Bilder für z.B. Akten hochladen. \n\nSobald du ein Bild hochgeladen hast, wird dir ein Button angezeigt, mit dem du den korrekten Link des Bildes für die Akten erhalten kannst. \n\nWenn Fehler auftreten, kannst du diese gern bei {member.guild.owner.mention} melden.",
+        color=discord.Color.gold()
+    )
+
     embed.set_thumbnail(url=member.display_avatar.url)
+    channel_embed.set_thumbnail(url=member.display_avatar.url)
     textchannel = discord.utils.get(member.guild.channels, name="・logs・")
     await textchannel.send(embed=embed)
+    await channel.send(embed=channel_embed)
 
 
 @bot.event
@@ -115,29 +146,49 @@ async def on_message(message):
 
 
 @bot.slash_command(description="Erstellt einen Textkanal")
-async def createchannel(ctx, user: Option(discord.Member, default=None)):
-    category = discord.utils.get(ctx.guild.categories, name="Channel")
-    channel = await ctx.guild.create_text_channel(str(user.name), category=category)
-    if discord.utils.get(ctx.guild.channels, name=str(user.name)) is None:
-        await channel.set_permissions(user, read_messages=True, send_messages=True, reason="User joined, Text Channel created")
-        await channel.set_permissions(user.guild.default_role, read_messages=False, send_messages=False, reason="User joined, Text Channel created")
+async def createchannel(ctx, member: Option(discord.Member, default=None)):
+    if await check_user_exists(member.id):
+        existing_channel = bot.get_channel(int(await get_channel_from_id(member.id)))
+        if existing_channel:  
+            await existing_channel.set_permissions(member, read_messages=True, send_messages=True, reason="User joined, Text Channel created")
+            await existing_channel.set_permissions(member.guild.default_role, read_messages=False, send_messages=False, reason="User joined, Text Channel created")
+            log_channel = discord.utils.get(member.guild.channels, name="・logs・")
+
+            embed = discord.Embed(
+                title=f"Textkanal von {member.name} wurde bereits erstellt",
+                description=f"Die Berechtigungen wurden erneut vergeben",
+                color=discord.Color.gold()
+            )   
+            await log_channel.send(embed=embed)
+            await ctx.respond(embed=embed, ephemeral=True)
+            return
     else:
-        log_channel = discord.utils.get(ctx.guild.channels, name="・logs・")
-        await log_channel.send(f"Der Textkanal von {user.name} wurde bereits erstellt")
-        await ctx.respond("Dieser Textkanal existiert bereits", ephemeral=True)
-        return
-    
+        category = discord.utils.get(member.guild.categories, name="Channel")
+        channel = await member.guild.create_text_channel(str(member.name), category=category)
+        await channel.set_permissions(member, read_messages=True, send_messages=True, reason="User joined, Text Channel created")
+        await channel.set_permissions(member.guild.default_role, read_messages=False, send_messages=False, reason="User joined, Text Channel created")
+        
+        await create_user(member.id, channel.id)
 
-    embed = discord.Embed(
-        title=f"Textkanal von {user.name} wurde erfolgreich erstellt",
-        description=f"Der Textkanal von {user.name} wurde erfolgreich erstellt",
-        color=discord.Color.gold()
-    )
+        embed = discord.Embed(
+            title=f"Textkanal von {member.name} wurde erfolgreich erstellt",
+            description=f"Der Textkanal von {member.name} wurde erfolgreich erstellt",
+            color=discord.Color.gold()
+        )
 
-    embed.set_thumbnail(url=user.display_avatar.url)
-    textchannel = discord.utils.get(ctx.guild.channels, name="・logs・")
-    await textchannel.send(embed=embed)
-    await ctx.respond(embed=embed, ephemeral=True)
+        channel_embed = discord.Embed(
+            title=f"Willkommen {member.name}!",
+            description=f"Dein eigener Textkanal wurde erfolgreich erstellt. Hier kannst du Bilder für z.B. Akten hochladen. \n\nSobald du ein Bild hochgeladen hast, wird dir ein Button angezeigt, mit dem du den korrekten Link des Bildes für die Akten erhalten kannst. \n\nWenn Fehler auftreten, kannst du diese gern bei {member.guild.owner.mention} melden.",
+            color=discord.Color.gold()
+        )
+
+        embed.set_thumbnail(url=member.display_avatar.url)
+        channel_embed.set_thumbnail(url=member.display_avatar.url)
+        textchannel = discord.utils.get(member.guild.channels, name="・logs・")
+        await textchannel.send(embed=embed)
+        await channel.send(embed=channel_embed)
+
+        await ctx.respond("Erstellt", ephemeral=True)
 
 
 def getToken():
