@@ -31,7 +31,7 @@ async def on_ready():
         )
         await db.commit()
 
-    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="auf deine Nachrichten!"))
+    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="deinen Nachrichten"))
 
 async def create_user(user_id, channel_id):
     async with aiosqlite.connect(DB) as db:
