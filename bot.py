@@ -89,11 +89,14 @@ async def resize_image_for_bleeter(attachments, channel):
         response = requests.get(url)
         image = Image.open(io.BytesIO(response.content))
         aspect_ratio = image.width / image.height
-        new_width = int(650 * aspect_ratio)
-        resized_image = image.resize((new_width, 650))
-        
+
+        # Check, if image is already in the right size
+        # If not, resize it
+        if image.width >= 650:
+            new_width = int(650 * aspect_ratio)
+            resized_image = image.resize((new_width, 650))
+            
         output_buffer = await compress_image(resized_image)
-        
         file = discord.File(output_buffer, filename="170123" + attachment.filename)
         
         embed = discord.Embed(
