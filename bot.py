@@ -105,7 +105,7 @@ async def resize_image_for_bleeter(attachments, channel):
         file = discord.File(output_buffer, filename="170123" + attachment.filename)
         
         embed = discord.Embed(
-            title="Bild erfolgreich angepasst",
+            title="Bild erfolgreich angepasst!",
             description="Klicke auf den Button, um den Link des Bildes zu erhalten",
             color=discord.Color.gold()
         )
@@ -129,9 +129,33 @@ async def compress_image(image, quality=100):
         new_quality = int(quality * 0.9)
         image.save(output_buffer, format="JPEG", optimize=True, quality=new_quality)
         quality = new_quality
-        print(f"Image size: {output_buffer.tell()}")
     output_buffer.seek(0)
     return output_buffer
+
+
+async def compress_image_to_channel(attachments, channel):
+    for attachment in attachments:
+        url = attachment.url
+        response = requests.get(url)
+        image = Image.open(io.BytesIO(response.content))
+            
+        output_buffer = await compress_image(image)
+        file = discord.File(output_buffer, filename="170123" + attachment.filename)
+        
+        embed = discord.Embed(
+            title="Bild erfolgreich angepasst!",
+            description="Klicke auf den Button, um den Link des Bildes zu erhalten",
+            color=discord.Color.gold()
+        )
+    
+        attachment_message = await channel.send(file=file)
+
+        attachment_url = attachment_message.attachments[0].url
+        button = discord.ui.Button(label="Link", style=discord.ButtonStyle.primary, url=attachment_url)
+        view = discord.ui.View()
+        view.add_item(button)
+
+        await channel.send(embed=embed, view=view)
         
 
 @bot.event
@@ -222,13 +246,16 @@ async def on_message(message):
                 button = discord.ui.Button(label="Link", style=discord.ButtonStyle.primary, url=new_link)
                 bleeter_button = discord.ui.Button(label="Auf Bleetergröße anpassen", style=discord.ButtonStyle.primary)
                 bleeter_button.callback = lambda _: asyncio.create_task(resize_image_for_bleeter(message.attachments, message.channel))
+                compress_image_button = discord.ui.Button(label="Komprimieren", style=discord.ButtonStyle.success)
+                compress_image_button.callback = lambda _: asyncio.create_task(compress_image_to_channel(message.attachments, message.channel))
                 view = discord.ui.View()
                 view.add_item(button)
                 view.add_item(bleeter_button)
+                view.add_item(compress_image_button)
 
                 embed = discord.Embed(
                     title="Download",
-                    description="Klicke auf den Button, um den Link des Bildes zu erhalten",
+                    description="Klicke auf den Button, um den Link des Bildes zu erhalten\n\nWillst du, dass das Bild auf die passende Größe für Bleeter angepasst wird? Dann klicke auf den Button 'Auf Bleetergröße anpassen'. \n\nWillst du das Bild nur komprimieren? Dann klicke auf 'Komprimieren'",
                     color=discord.Color.brand_green()
                 )
                 
