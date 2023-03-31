@@ -3,11 +3,11 @@ from discord.commands import Option
 from PIL import Image
 import requests
 import io
+import datetime
 import asyncio
-
 import aiosqlite
-
 import json
+
 
 intents = discord.Intents.all()
 intents.members = True
@@ -37,6 +37,7 @@ async def on_ready():
 
     await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="deinen Nachrichten"))
 
+
 async def create_user(user_id, channel_id):
     async with aiosqlite.connect(DB) as db:
         await db.execute(
@@ -47,6 +48,7 @@ async def create_user(user_id, channel_id):
             (user_id, channel_id)
         )
         await db.commit()
+
 
 @bot.slash_command(name="removeuser", description="Entfernt einen User aus der Datenbank")
 async def remove_user_from_db(ctx, user: Option(discord.Member, required=True)):
@@ -60,6 +62,7 @@ async def remove_user_from_db(ctx, user: Option(discord.Member, required=True)):
         await db.commit()
         await ctx.respond(f"Der User {user.name} wurde erfolgreich aus der Datenbank entfernt")
 
+
 async def check_user_exists(user_id):
     async with aiosqlite.connect(DB) as db:
         cursor = await db.execute(
@@ -71,6 +74,7 @@ async def check_user_exists(user_id):
         result = await cursor.fetchall()
         return bool(result)
     
+
 async def get_channel_from_id(user_id):
     async with aiosqlite.connect(DB) as db:
         cursor = await db.execute(
@@ -83,6 +87,7 @@ async def get_channel_from_id(user_id):
         channel_id = result[0]
         return channel_id
     
+
 async def resize_image_for_bleeter(attachments, channel):
     for attachment in attachments:
         url = attachment.url
@@ -124,7 +129,7 @@ async def compress_image(image, quality=100):
         new_quality = int(quality * 0.9)
         image.save(output_buffer, format="JPEG", optimize=True, quality=new_quality)
         quality = new_quality
-        print(f"Image size: {output_buffer.tell()}")  # Überprüfen des Pufferinhalts
+        print(f"Image size: {output_buffer.tell()}")
     output_buffer.seek(0)
     return output_buffer
         
@@ -275,6 +280,46 @@ async def createchannel(ctx, member: Option(discord.Member, default=None)):
 
         await ctx.respond("Erstellt", ephemeral=True)
 
+
+@bot.slash_command(description="Berechne das Enddatum und die Endzeit")
+async def time(ctx, start_date: Option(), start_time: Option(), hours: Option(), minutes: Option()):
+    try:
+        start_date = datetime.datetime.strptime(start_date, '%d.%m.%Y')
+        start_time = datetime.datetime.strptime(start_time, '%H:%M')
+        start_datetime = datetime.datetime.combine(start_date.date(), start_time.time())
+        end_datetime = start_datetime + datetime.timedelta(hours=int(hours), minutes=int(minutes))
+        embed = discord.Embed(
+            title="Enddatum und Endzeit",
+            description=f"Das Enddatum ist der {end_datetime.strftime('%d.%m.%Y')} um {end_datetime.strftime('%H:%M')} Uhr",
+            color=discord.Color.gold()
+        )
+        embed.add_field(name="Startdatum: ", value=start_date.strftime('%d.%m.%Y'), inline=False)
+        embed.add_field(name="Startzeit: ", value=start_time.strftime('%H.%M'), inline=False)
+        embed.add_field(name="Stunden: ", value=hours, inline=False)
+        embed.add_field(name="Minuten: ", value=minutes, inline=False)
+    
+        await ctx.respond(embed=embed, ephemeral=True)
+    except ValueError:
+        embed = discord.Embed(
+            title="Fehler",
+            description="Es wurde kein gültiges Startdatum und/oder Startzeit angegeben. \n\nBitte gib das Startdatum und die Startzeit im Format `dd.mm.yyyy` und `hh:mm` an. \n\nBeispiel: \n\n`/time 01.01.2023 12:00 1 30`",
+            color=discord.Color.red()
+        )  
+        await ctx.respond(embed=embed, ephemeral=True)
+
+
+@bot.slash_command(description="Zeigt die Hilfe an")
+async def help(ctx):
+    embed = discord.Embed(
+        title="Hilfe",
+        description="Hier findest du alle Befehle, die du verwenden kannst:",
+        color=discord.Color.gold()
+    )
+    embed.add_field(name="/help", value="Zeigt die Hilfe an", inline=False)
+    embed.add_field(name="/time", value="Berechnet das Enddatum und die Endzeit", inline=False)
+    embed.add_field(name="Bildoptionen?", value="Lade einfach ein Bild hoch und klick auf die Buttons!", inline=False)
+    await ctx.respond(embed=embed, ephemeral=True)
+    
 
 def getToken():
     with open('token.json', 'r') as f:
