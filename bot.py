@@ -19,7 +19,6 @@ bot = discord.Bot(
 
 DB = "user.db"
 
-
 @bot.event
 async def on_ready():
     print(f"{bot.user} ist online")
@@ -243,12 +242,15 @@ async def on_message(message):
                 elif ".gif" in link:
                     index = link.index(".gif")
                     new_link = link[:index+len(".gif")] 
+
+                global view
+                view = discord.ui.View()
+                                
                 button = discord.ui.Button(label="Link", style=discord.ButtonStyle.primary, url=new_link)
                 bleeter_button = discord.ui.Button(label="Auf Bleetergröße anpassen", style=discord.ButtonStyle.primary)
                 bleeter_button.callback = lambda _: asyncio.create_task(resize_image_for_bleeter(message.attachments, message.channel))
                 compress_image_button = discord.ui.Button(label="Komprimieren", style=discord.ButtonStyle.success)
                 compress_image_button.callback = lambda _: asyncio.create_task(compress_image_to_channel(message.attachments, message.channel))
-                view = discord.ui.View()
                 view.add_item(button)
                 view.add_item(bleeter_button)
                 view.add_item(compress_image_button)
@@ -259,7 +261,7 @@ async def on_message(message):
                     color=discord.Color.brand_green()
                 )
                 
-                await message.channel.send(embed=embed, view=view)
+                await message.channel.send(embed=embed, view=view, reference=message, mention_author=False)
 
 
 @bot.slash_command(description="Erstellt einen Textkanal")
