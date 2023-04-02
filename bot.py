@@ -261,7 +261,7 @@ async def on_message(message):
                     color=discord.Color.brand_green()
                 )
                 
-                await message.channel.send(embed=embed, view=view, reference=message, mention_author=False)
+                await message.channel.send(embed=embed, view=view, reference=message, mention_author=True)
 
 
 @bot.slash_command(description="Erstellt einen Textkanal")
