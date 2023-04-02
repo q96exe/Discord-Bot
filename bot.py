@@ -195,6 +195,7 @@ async def on_member_join(member):
             description=f"Dein eigener Textkanal wurde erfolgreich erstellt. Hier kannst du Bilder für z.B. Akten hochladen. \n\n\
                 Sobald du ein Bild hochgeladen hast, wird dir ein Button angezeigt, mit dem du den korrekten Link des Bildes für die Akten erhalten kannst. \n\n\
                 Außerdem kannst du das Bild direkt auf die passende Größe und Qualität für Bleeter anpassen. \n\n\
+                Weitere Hilfe bekommst du mit dem Befehl /help. \n\n\
                 Wenn Fehler auftreten, kannst du diese gern bei {member.guild.owner.mention} melden.",
             color=discord.Color.gold()
         )
