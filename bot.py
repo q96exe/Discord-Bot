@@ -50,8 +50,16 @@ async def create_user(user_id, channel_id):
 
 
 @bot.slash_command(name="removeuser", description="Entfernt einen User aus der Datenbank")
-@discord.commands.has_permissions(administrator=True)
 async def remove_user_from_db(ctx, user: Option(discord.Member, required=True)):
+
+    if not ctx.author.guild_permissions.administrator:
+        embed = discord.Embed(
+            title="Fehler",
+            description="Du hast keine Berechtigung diesen Command auszuführen!",
+            color=discord.Color.red()
+        )
+        await ctx.respond(embed=embed)
+        return
 
     async with aiosqlite.connect(DB) as db:
         await db.execute(
