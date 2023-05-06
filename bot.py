@@ -51,6 +51,16 @@ async def create_user(user_id, channel_id):
 
 @bot.slash_command(name="removeuser", description="Entfernt einen User aus der Datenbank")
 async def remove_user_from_db(ctx, user: Option(discord.Member, required=True)):
+
+    if not ctx.author.guild_permissions.administrator:
+        embed = discord.Embed(
+            title="Fehler",
+            description="Du hast keine Berechtigung diesen Command auszuführen!",
+            color=discord.Color.red()
+        )
+        await ctx.respond(embed=embed)
+        return
+
     async with aiosqlite.connect(DB) as db:
         await db.execute(
             """
@@ -293,52 +303,6 @@ async def on_message(message):
                 )
 
                 await message.channel.send(embed=embed, view=view, reference=message, mention_author=True)
-
-
-@bot.slash_command(description="Erstellt einen Textkanal")
-async def createchannel(ctx, member: Option(discord.Member, default=None)):
-    if await check_user_exists(member.id):
-        existing_channel = bot.get_channel(int(await get_channel_from_id(member.id)))
-        if existing_channel:  
-            await existing_channel.set_permissions(member, read_messages=True, send_messages=True, reason="User joined, Text Channel created")
-            await existing_channel.set_permissions(member.guild.default_role, read_messages=False, send_messages=False, reason="User joined, Text Channel created")
-            log_channel = discord.utils.get(member.guild.channels, name="・logs・")
-
-            embed = discord.Embed(
-                title=f"Textkanal von {member.name} wurde bereits erstellt",
-                description=f"Die Berechtigungen wurden erneut vergeben",
-                color=discord.Color.gold()
-            )   
-            await log_channel.send(embed=embed)
-            await ctx.respond(embed=embed, ephemeral=True)
-            return
-    else:
-        category = discord.utils.get(member.guild.categories, name="Channel")
-        channel = await member.guild.create_text_channel(str(member.name), category=category)
-        await channel.set_permissions(member, read_messages=True, send_messages=True, reason="User joined, Text Channel created")
-        await channel.set_permissions(member.guild.default_role, read_messages=False, send_messages=False, reason="User joined, Text Channel created")
-
-        await create_user(member.id, channel.id)
-
-        embed = discord.Embed(
-            title=f"Textkanal von {member.name} wurde erfolgreich erstellt",
-            description=f"Der Textkanal von {member.name} wurde erfolgreich erstellt",
-            color=discord.Color.gold()
-        )
-
-        channel_embed = discord.Embed(
-            title=f"Willkommen {member.name}!",
-            description=f"Dein eigener Textkanal wurde erfolgreich erstellt. Hier kannst du Bilder für z.B. Akten hochladen. \n\nSobald du ein Bild hochgeladen hast, wird dir ein Button angezeigt, mit dem du den korrekten Link des Bildes für die Akten erhalten kannst. \n\nWenn Fehler auftreten, kannst du diese gern bei {member.guild.owner.mention} melden.",
-            color=discord.Color.gold()
-        )
-
-        embed.set_thumbnail(url=member.display_avatar.url)
-        channel_embed.set_thumbnail(url=member.display_avatar.url)
-        textchannel = discord.utils.get(member.guild.channels, name="・logs・")
-        await textchannel.send(embed=embed)
-        await channel.send(embed=channel_embed)
-
-        await ctx.respond("Erstellt", ephemeral=True)
 
 
 @bot.slash_command(description="Berechne das Enddatum und die Endzeit")
