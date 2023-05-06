@@ -74,7 +74,7 @@ async def check_user_exists(user_id):
         return bool(result)
     
 
-async def get_channel_from_id(user_id):
+async def get_channel_from_id(ctx, user_id):
     async with aiosqlite.connect(DB) as db:
         cursor = await db.execute(
             """
@@ -85,6 +85,19 @@ async def get_channel_from_id(user_id):
         result = await cursor.fetchone()
         channel_id = result[0]
         return channel_id
+    
+async def get_user_from_channel(channel):
+    async with aiosqlite.connect(DB) as db:
+        cursor = await db.execute(
+            """
+            SELECT user_id FROM user WHERE channel_id = ?
+            """, 
+            (channel.id,)
+        )
+        result = await cursor.fetchone()
+        user_id = result[0]
+        username = await discord.fetch_user(user_id)
+        return username
     
 
 async def resize_image_for_bleeter(attachments, channel):
@@ -133,28 +146,44 @@ async def compress_image(image, quality=100):
 
 
 async def compress_image_to_channel(attachments, channel):
-    for attachment in attachments:
-        url = attachment.url
-        response = requests.get(url)
-        image = Image.open(io.BytesIO(response.content))
+    try:
+        for attachment in attachments:
+            url = attachment.url
+            response = requests.get(url)
+            image = Image.open(io.BytesIO(response.content))
+                
+            output_buffer = await compress_image(image)
+            file = discord.File(output_buffer, filename="170123" + attachment.filename)
             
-        output_buffer = await compress_image(image)
-        file = discord.File(output_buffer, filename="170123" + attachment.filename)
+            embed = discord.Embed(
+                title="Bild erfolgreich angepasst!",
+                description="Klicke auf den Button, um den Link des Bildes zu erhalten",
+                color=discord.Color.gold()
+            )
         
-        embed = discord.Embed(
-            title="Bild erfolgreich angepasst!",
-            description="Klicke auf den Button, um den Link des Bildes zu erhalten",
-            color=discord.Color.gold()
+            attachment_message = await channel.send(file=file)
+
+            attachment_url = attachment_message.attachments[0].url
+            button = discord.ui.Button(label="Link", style=discord.ButtonStyle.primary, url=attachment_url)
+            view = discord.ui.View()
+            view.add_item(button)
+
+            await channel.send(embed=embed, view=view)
+    except Exception as e:
+        embed_log = discord.Embed(
+            title="Fehler",
+            description=f"Es ist ein Fehler im Channel von {get_user_from_channel} aufgetreten:\n\n {e}",
+            color=discord.Color.red()
         )
-    
-        attachment_message = await channel.send(file=file)
 
-        attachment_url = attachment_message.attachments[0].url
-        button = discord.ui.Button(label="Link", style=discord.ButtonStyle.primary, url=attachment_url)
-        view = discord.ui.View()
-        view.add_item(button)
+        embed = discord.Embed(	
+            title="Fehler",	
+            description=f"Es ist ein Fehler aufgetreten! {channel.guild.owner.mention}",	
+            color=discord.Color.red()	
+        )
 
-        await channel.send(embed=embed, view=view)
+        await log_channel.send(embed=embed_log)
+        await channel.send(embed=embed)
         
 
 @bot.event
@@ -167,6 +196,7 @@ async def on_member_join(member):
             await existing_channel.edit(category=discord.utils.get(member.guild.categories, name="Channel"))
             await existing_channel.set_permissions(member, read_messages=True, send_messages=True, reason="User joined, Text Channel created")
             await existing_channel.set_permissions(member.guild.default_role, read_messages=False, send_messages=False, reason="User joined, Text Channel created")
+            global log_channel
             log_channel = discord.utils.get(member.guild.channels, name="・logs・")
 
             embed = discord.Embed(
@@ -261,7 +291,7 @@ async def on_message(message):
                     description="Klicke auf den Button, um den Link des Bildes zu erhalten\n\nWillst du, dass das Bild auf die passende Größe für Bleeter angepasst wird? Dann klicke auf den Button 'Auf Bleetergröße anpassen'. \n\nWillst du das Bild nur komprimieren? Dann klicke auf 'Komprimieren'",
                     color=discord.Color.brand_green()
                 )
-                
+
                 await message.channel.send(embed=embed, view=view, reference=message, mention_author=True)
 
 
