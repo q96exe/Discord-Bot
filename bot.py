@@ -203,9 +203,40 @@ async def on_member_join(member):
     if await check_user_exists(member.id):
         existing_channel = bot.get_channel(int(await get_channel_from_id(member.id)))
         if existing_channel:
-            await existing_channel.edit(category=discord.utils.get(member.guild.categories, name="Channel"))
-            await existing_channel.set_permissions(member, read_messages=True, send_messages=True, reason="User joined, Text Channel created")
-            await existing_channel.set_permissions(member.guild.default_role, read_messages=False, send_messages=False, reason="User joined, Text Channel created")
+            category_prefix = "Channel "
+            max_channels_per_category = 50
+
+            category_name = None
+            for category in member.guild.categories:
+                if category.name.startswith(category_prefix):
+                    category_num = category.name[len(category_prefix):]
+                    try:
+                        category_num = int(category_num)
+                    except ValueError:
+                        continue
+                    if len(category.channels) < max_channels_per_category:
+                        category_name = category.name
+                        break
+            
+            if category_name is None:
+                category_num = 1
+                while True:
+                    category_name = category_prefix + str(category_num)
+                    if discord.utils.get(member.guild.categories, name=category_name) is None:
+                        break
+                    category_num += 1
+
+                category_list = []
+                for category in member.guild.categories:
+                    if category.name.startswith(category_prefix):
+                        category_list.append(category)
+                category_list.sort(key=lambda x: x.id)
+                last_category = category_list[-1] if category_list else None
+                new_position = last_category.position + 1 if last_category else 0
+                category = await member.guild.create_category(category_name, position=new_position)
+            await existing_channel.edit(category=discord.utils.get(member.guild.categories, name=category_name))
+            await existing_channel.set_permissions(member, read_messages=True, send_messages=True, reason="User joined again, Text Channel moved")
+            await existing_channel.set_permissions(member.guild.default_role, read_messages=False, send_messages=False, reason="User joined again, Text Channel moved")
             global log_channel
             log_channel = discord.utils.get(member.guild.channels, name="・logs・")
 
@@ -217,7 +248,6 @@ async def on_member_join(member):
             await log_channel.send(embed=embed)
             return
     else:
-        #category = discord.utils.get(member.guild.categories, name="Channel")
         category_prefix = "Channel "
         max_channels_per_category = 50
 
@@ -283,52 +313,25 @@ async def on_member_join(member):
 @bot.event
 async def on_member_remove(member):
     if await check_user_exists(member.id):
-        existing_channel = discord.get_channel(int(await get_channel_from_id(member.id)))
+        existing_channel = bot.get_channel(int(await get_channel_from_id(member.id)))
         if existing_channel:
             max_channels_per_category = 50
             category_prefix = "Channel - User left"
+            category_list = []
 
             for category in member.guild.categories:
                 if category.name.startswith(category_prefix):
-                    if len(category.channels) < max_channels_per_category:
-                        await existing_channel.edit(category=category)
-                        log_channel = discord.utils.get(member.guild.channels, name="・logs・")
+                    category_list.append(category)
 
-                        embed = discord.Embed(
-                            title=f"Textkanal von {member.name} wurde erfolgreich verschoben",
-                            description=f"Der Textkanal von {member.name} wurde erfolgreich verschoben, da er den Server verlassen hat",
-                            color=discord.Color.gold()
-                        )   
-                        await log_channel.send(embed=embed)
+            category_list.sort(key=lambda x: x.id)
 
-            category_name = None
-            for category in member.guild.categories:
-                if category.name.startswith(category_prefix):
-                    category_num = category.name[len(category_prefix):]
-                    try:
-                        category_num = int(category_num)
-                    except ValueError:
-                        continue
-                    if len(category.channels) < max_channels_per_category:
-                        category_name = category.name
-                        break
-
-            if category_name is None:
-                category_num = 1
-                while True:
-                    category_name = category_prefix + str(category_num)
-                    if discord.utils.get(member.guild.categories, name=category_name) is None:
-                        break
-                    category_num += 1
-
-                category_list = []
-                for categories in member.guild.categories:
-                    if categories.name.startswith(category_prefix):
-                        category_list.append(categories)
-                category_list.sort(key=lambda x: x.id)
-                last_category = category_list[-1] if category_list else None
-                new_position = last_category.position + 1 if last_category else 0
-                category = await member.guild.create_category(category_name, position=new_position)
+            if len(category_list[0].channels) >= max_channels_per_category:
+                category_num = int(category_list[-1].name.split()[-1]) + 1 if category_list else 1
+                category_name = f"{category_prefix} {category_num}"
+                category_position = category_list[-1].position + 1 if category_list else 0
+                category = await member.guild.create_category(category_name, position=category_position)
+            else:
+                category = category_list[0]
 
             await existing_channel.edit(category=category)
             log_channel = discord.utils.get(member.guild.channels, name="・logs・")
