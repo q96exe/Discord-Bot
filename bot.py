@@ -84,7 +84,7 @@ async def check_user_exists(user_id):
         return bool(result)
     
 
-async def get_channel_from_id(ctx, user_id):
+async def get_channel_from_id(user_id):
     async with aiosqlite.connect(DB) as db:
         cursor = await db.execute(
             """
@@ -283,7 +283,7 @@ async def on_member_join(member):
 @bot.event
 async def on_member_remove(member):
     if await check_user_exists(member.id):
-        existing_channel = bot.get_channel(int(await get_channel_from_id(member.id)))
+        existing_channel = discord.get_channel(int(await get_channel_from_id(member.id)))
         if existing_channel:
             max_channels_per_category = 50
             category_prefix = "Channel - User left"
