@@ -122,6 +122,8 @@ async def resize_image_for_bleeter(attachments, channel):
         if image.width >= 650:
             new_width = int(650 * aspect_ratio)
             resized_image = image.resize((new_width, 650))
+        else:
+            resized_image = image
             
         output_buffer = await compress_image(resized_image)
         file = discord.File(output_buffer, filename="170123" + attachment.filename)
