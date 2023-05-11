@@ -217,7 +217,40 @@ async def on_member_join(member):
             await log_channel.send(embed=embed)
             return
     else:
-        category = discord.utils.get(member.guild.categories, name="Channel")
+        #category = discord.utils.get(member.guild.categories, name="Channel")
+        category_prefix = "Channel "
+        max_channels_per_category = 50
+
+        category_name = None
+        for category in member.guild.categories:
+            if category.name.startswith(category_prefix):
+                category_num = category.name[len(category_prefix):]
+                try:
+                    category_num = int(category_num)
+                except ValueError:
+                    continue
+                if len(category.channels) < max_channels_per_category:
+                    category_name = category.name
+                    break
+        
+        if category_name is None:
+            category_num = 1
+            while True:
+                category_name = category_prefix + str(category_num)
+                if discord.utils.get(member.guild.categories, name=category_name) is None:
+                    break
+                category_num += 1
+
+            category_list = []
+            for category in member.guild.categories:
+                if category.name.startswith(category_prefix):
+                    category_list.append(category)
+            category_list.sort(key=lambda x: x.id)
+            last_category = category_list[-1] if category_list else None
+            new_position = last_category.position + 1 if last_category else 0
+            category = await member.guild.create_category(category_name, position=new_position)
+
+
         channel = await member.guild.create_text_channel(str(member.name), category=category)
         await channel.set_permissions(member, read_messages=True, send_messages=True, reason="User joined, Text Channel created")
         await channel.set_permissions(member.guild.default_role, read_messages=False, send_messages=False, reason="User joined, Text Channel created")
@@ -252,7 +285,52 @@ async def on_member_remove(member):
     if await check_user_exists(member.id):
         existing_channel = bot.get_channel(int(await get_channel_from_id(member.id)))
         if existing_channel:
-            await existing_channel.edit(category=discord.utils.get(member.guild.categories, name="Channel - User left"))
+            max_channels_per_category = 50
+            category_prefix = "Channel - User left"
+
+            for category in member.guild.categories:
+                if category.name.startswith(category_prefix):
+                    if len(category.channels) < max_channels_per_category:
+                        await existing_channel.edit(category=category)
+                        log_channel = discord.utils.get(member.guild.channels, name="・logs・")
+
+                        embed = discord.Embed(
+                            title=f"Textkanal von {member.name} wurde erfolgreich verschoben",
+                            description=f"Der Textkanal von {member.name} wurde erfolgreich verschoben, da er den Server verlassen hat",
+                            color=discord.Color.gold()
+                        )   
+                        await log_channel.send(embed=embed)
+
+            category_name = None
+            for category in member.guild.categories:
+                if category.name.startswith(category_prefix):
+                    category_num = category.name[len(category_prefix):]
+                    try:
+                        category_num = int(category_num)
+                    except ValueError:
+                        continue
+                    if len(category.channels) < max_channels_per_category:
+                        category_name = category.name
+                        break
+
+            if category_name is None:
+                category_num = 1
+                while True:
+                    category_name = category_prefix + str(category_num)
+                    if discord.utils.get(member.guild.categories, name=category_name) is None:
+                        break
+                    category_num += 1
+
+                category_list = []
+                for categories in member.guild.categories:
+                    if categories.name.startswith(category_prefix):
+                        category_list.append(categories)
+                category_list.sort(key=lambda x: x.id)
+                last_category = category_list[-1] if category_list else None
+                new_position = last_category.position + 1 if last_category else 0
+                category = await member.guild.create_category(category_name, position=new_position)
+
+            await existing_channel.edit(category=category)
             log_channel = discord.utils.get(member.guild.channels, name="・logs・")
 
             embed = discord.Embed(
@@ -301,7 +379,7 @@ async def on_message(message):
                     description="Klicke auf den Button, um den Link des Bildes zu erhalten\n\nWillst du, dass das Bild auf die passende Größe für Bleeter angepasst wird? Dann klicke auf den Button 'Auf Bleetergröße anpassen'. \n\nWillst du das Bild nur komprimieren? Dann klicke auf 'Komprimieren'",
                     color=discord.Color.brand_green()
                 )
-
+                
                 await message.channel.send(embed=embed, view=view, reference=message, mention_author=True)
 
 
