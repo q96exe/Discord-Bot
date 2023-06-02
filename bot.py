@@ -350,7 +350,7 @@ async def on_member_remove(member):
 async def on_message(message):
     if message.attachments:
         for attachment in message.attachments:
-            if(attachment.filename.startswith("170123")):
+            if attachment.filename.startswith("170123"):
                 return
             if attachment.filename.endswith(".png") or attachment.filename.endswith(".jpg") or attachment.filename.endswith(".jpeg") or attachment.filename.endswith(".gif"):
                 link = attachment.url
