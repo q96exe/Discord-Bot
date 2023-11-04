@@ -18,6 +18,7 @@ bot = discord.Bot(
 )
 
 DB = "user.db"
+file_add_start = "021023"
 
 @bot.event
 async def on_ready():
@@ -126,7 +127,7 @@ async def resize_image_for_bleeter(attachments, channel):
             resized_image = image
             
         output_buffer = await compress_image(resized_image)
-        file = discord.File(output_buffer, filename="170123" + attachment.filename)
+        file = discord.File(output_buffer, filename=file_add_start + attachment.filename)
         
         embed = discord.Embed(
             title="Bild erfolgreich angepasst!",
@@ -165,7 +166,7 @@ async def compress_image_to_channel(attachments, channel):
             image = Image.open(io.BytesIO(response.content))
                 
             output_buffer = await compress_image(image)
-            file = discord.File(output_buffer, filename="170123" + attachment.filename)
+            file = discord.File(output_buffer, filename=file_add_start + attachment.filename)
             
             embed = discord.Embed(
                 title="Bild erfolgreich angepasst!",
@@ -350,22 +351,34 @@ async def on_member_remove(member):
 async def on_message(message):
     if message.attachments:
         for attachment in message.attachments:
-            if attachment.filename.startswith("170123"):
+            if attachment.filename.startswith(file_add_start):
                 return
-            if attachment.filename.endswith(".png") or attachment.filename.endswith(".jpg") or attachment.filename.endswith(".jpeg") or attachment.filename.endswith(".gif"):
+            if attachment.filename.endswith(".png") or attachment.filename.endswith(".PNG") or attachment.filename.endswith(".jpg") or attachment.filename.endswith(".JPG") or attachment.filename.endswith(".jpeg") or attachment.filename.endswith(".JPEG") or attachment.filename.endswith(".gif") or attachment.filename.endswith(".GIF"):
                 link = attachment.url
                 if ".png" in link:
                     index = link.index(".png")
                     new_link = link[:index+len(".png")]
+                elif ".PNG" in link:
+                    index = link.index(".PNG")
+                    new_link = link[:index+len(".PNG")]
                 elif ".jpg" in link:
                     index = link.index(".jpg")
                     new_link = link[:index+len(".jpg")]
+                elif ".JPG" in link:
+                    index = link.index(".JPG")
+                    new_link = link[:index+len(".JPG")]
                 elif ".jpeg" in link:
                     index = link.index(".jpeg")
                     new_link = link[:index+len(".jpeg")]
+                elif ".JPEG" in link:
+                    index = link.index(".JPEG")
+                    new_link = link[:index+len(".JPEG")]
                 elif ".gif" in link:
                     index = link.index(".gif")
-                    new_link = link[:index+len(".gif")] 
+                    new_link = link[:index+len(".gif")]
+                elif ".GIF" in link:
+                    index = link.index(".GIF")
+                    new_link = link[:index+len(".GIF")]
 
                 global view
                 view = discord.ui.View()
