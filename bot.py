@@ -131,7 +131,10 @@ async def resize_image_for_bleeter(attachments, channel):
         else:
             resized_image = image
 
-        output_buffer = await compress_image(resized_image)
+        print(len(resized_image.tobytes()))
+
+        if len(resized_image.tobytes()) <= 1000000:
+            output_buffer = await compress_image(resized_image)
         file = discord.File(
             output_buffer, filename=file_add_start + attachment.filename
         )
@@ -158,18 +161,23 @@ async def compress_image(images, quality=100):
     output_buffer = io.BytesIO()
     image = images.convert("RGB")
     original_size = len(image.tobytes())
-    while original_size > 1000000:
-        image.save(output_buffer, format="JPEG", optimize=True, quality=quality)
-        output_size = len(output_buffer.getbuffer())
-        if output_size < 1000000:
-            break
-        quality = int(quality * 0.9)
+    if not original_size <= 1000000:
+        while original_size >= 1000000:
+            image.save(output_buffer, format="JPEG", optimize=True, quality=quality)
+            output_size = len(output_buffer.getbuffer())
+            if output_size <= 1000000:
+                break
+            quality = int(quality * 0.9)
+            output_buffer.seek(0)
+            output_buffer.truncate(0)
+            image.save(output_buffer, format="JPEG", optimize=True, quality=quality)
         output_buffer.seek(0)
-        output_buffer.truncate(0)
-        image.save(output_buffer, format="JPEG", optimize=True, quality=quality)
-        original_size = output_size
-    output_buffer.seek(0)
-    return output_buffer
+        print(len(output_buffer.getbuffer()))
+        return output_buffer
+    else:
+        image.save(output_buffer, format="JPEG", optimize=False, quality=quality)
+        output_buffer.seek(0)
+        return output_buffer
 
 
 async def compress_image_to_channel(attachments, channel):
