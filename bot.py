@@ -133,11 +133,9 @@ async def resize_image_for_bleeter(attachments, channel):
 
         print(len(resized_image.tobytes()))
 
-        if len(resized_image.tobytes()) <= 1000000:
-            output_buffer = await compress_image(resized_image)
-        file = discord.File(
-            output_buffer, filename=file_add_start + attachment.filename
-        )
+        #if len(resized_image.tobytes()) <= 1000000:
+        output_buffer = await compress_image(resized_image)
+        file = discord.File(output_buffer, filename=file_add_start + attachment.filename)
 
         embed = discord.Embed(
             title="Bild erfolgreich angepasst!",
@@ -156,28 +154,30 @@ async def resize_image_for_bleeter(attachments, channel):
 
         await channel.send(embed=embed, view=view)
 
-
-async def compress_image(images, quality=100):
+async def compress_image(image, max_size=1000000):
     output_buffer = io.BytesIO()
-    image = images.convert("RGB")
-    original_size = len(image.tobytes())
-    if not original_size <= 1000000:
-        while original_size >= 1000000:
-            image.save(output_buffer, format="JPEG", optimize=True, quality=quality)
-            output_size = len(output_buffer.getbuffer())
-            if output_size <= 1000000:
-                break
-            quality = int(quality * 0.9)
-            output_buffer.seek(0)
-            output_buffer.truncate(0)
-            image.save(output_buffer, format="JPEG", optimize=True, quality=quality)
+    image = image.convert("RGB")
+    
+    # Anfangs- und Endwerte für die Qualitätssuche
+    low, high = 10, 100
+    quality = high
+
+    while low <= high:
         output_buffer.seek(0)
-        print(len(output_buffer.getbuffer()))
-        return output_buffer
-    else:
-        image.save(output_buffer, format="JPEG", optimize=False, quality=quality)
-        output_buffer.seek(0)
-        return output_buffer
+        output_buffer.truncate(0)
+        quality = (low + high) // 2  # Mittelpunkt für die binäre Suche
+        image.save(output_buffer, format="JPEG", optimize=True, quality=quality)
+        output_size = len(output_buffer.getbuffer())
+
+        if output_size > max_size:
+            high = quality - 1
+        elif output_size < max_size - 5000:  # Ein Puffer, um sicherzustellen, dass das Bild knapp unter 1MB ist
+            low = quality + 1
+        else:
+            break  # Die Größe ist akzeptabel
+
+    output_buffer.seek(0)
+    return output_buffer
 
 
 async def compress_image_to_channel(attachments, channel):
